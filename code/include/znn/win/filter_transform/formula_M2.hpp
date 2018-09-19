@@ -1,0 +1,985 @@
+//
+// Copyright (C) 2018 Aleksandar Zlateski <zlateski@mit.edu>
+// Copyright (C) 2018 Zhen Jia <zhenj@princeton.edu>
+// ---------------------------------------------------------------
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+template <long_t M, long_t N, long_t OS, long_t IS>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 3>::type
+transform_filter_1d(SIMD_FLOAT* __restrict out, SIMD_FLOAT const* __restrict in)
+{ 
+SIMD_FLOAT C1D2 = SIMD_SET1(0.5f);
+
+out[0] = in[0];
+ 
+SIMD_FLOAT V12S = SIMD_MUL(in[0],C1D2);
+V12S = SIMD_FMADD(in[IS * 2],C1D2,V12S);
+
+out[OS] = SIMD_FMADD(C1D2,in[IS],V12S);
+
+out[OS * 2] = SIMD_FNMADD(C1D2,in[IS],V12S);
+
+out[OS * 3] = in[IS * 2];
+ 
+
+ }
+
+template <long_t M, long_t N, long_t O_STRIDE, long_t IS, long_t STRIDE>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 3>::type
+transform_filter_1d_last(float* __restrict output,
+                        SIMD_FLOAT const* __restrict in, long_t base)
+{
+static const long_t TS = M + N - 1;
+SIMD_FLOAT out[TS] __attribute__((aligned(64)));
+
+SIMD_FLOAT C1D2 = SIMD_SET1(0.5f);
+
+out[0] = in[0];
+ 
+SIMD_FLOAT V12S = SIMD_MUL(in[0],C1D2);
+V12S = SIMD_FMADD(in[IS * 2],C1D2,V12S);
+
+out[1] = SIMD_FMADD(C1D2,in[IS],V12S);
+
+out[2] = SIMD_FNMADD(C1D2,in[IS],V12S);
+
+out[3] = in[IS * 2];
+ 
+
+
+#pragma unroll(TS)
+    for (long_t i = 0; i < TS; i++)
+	{
+	  SIMD_STREAM(output + (base + i * STRIDE) * O_STRIDE, out[i]);
+	}
+}
+
+
+template <long_t M, long_t N, long_t OS, long_t IS>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 4>::type
+transform_filter_1d(SIMD_FLOAT* __restrict out, SIMD_FLOAT const* __restrict in)
+{ 
+SIMD_FLOAT C1D2 = SIMD_SET1(0.5f);
+SIMD_FLOAT CN1D2 = SIMD_SET1(-0.5f);
+SIMD_FLOAT C1D6 = SIMD_SET1(0.166666666667f);
+SIMD_FLOAT C1D3 = SIMD_SET1(0.333333333333f);
+SIMD_FLOAT C2D3 = SIMD_SET1(0.666666666667f);
+SIMD_FLOAT C4D3 = SIMD_SET1(1.33333333333f);
+
+out[0] = SIMD_MUL(in[0],C1D2);
+
+out[OS] = SIMD_MUL(in[0],CN1D2);
+out[OS] = SIMD_FMADD(in[IS],CN1D2,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 2],CN1D2,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 3],CN1D2,out[OS]);
+
+out[OS * 2] = SIMD_MUL(in[IS],C1D6);
+out[OS * 2] = SIMD_FNMADD(in[0],C1D6,out[OS * 2]);
+out[OS * 2] = SIMD_FNMADD(in[IS * 2],C1D6,out[OS * 2]);
+out[OS * 2] = SIMD_FMADD(in[IS * 3],C1D6,out[OS * 2]);
+
+out[OS * 3] = SIMD_MUL(in[0],C1D6);
+out[OS * 3] = SIMD_FMADD(in[IS],C1D3,out[OS * 3]);
+out[OS * 3] = SIMD_FMADD(in[IS * 2],C2D3,out[OS * 3]);
+out[OS * 3] = SIMD_FMADD(in[IS * 3],C4D3,out[OS * 3]);
+
+out[OS * 4] = in[IS * 3];
+ 
+
+ }
+
+template <long_t M, long_t N, long_t O_STRIDE, long_t IS, long_t STRIDE>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 4>::type
+transform_filter_1d_last(float* __restrict output,
+                        SIMD_FLOAT const* __restrict in, long_t base)
+{
+static const long_t TS = M + N - 1;
+SIMD_FLOAT out[TS] __attribute__((aligned(64)));
+
+SIMD_FLOAT C1D2 = SIMD_SET1(0.5f);
+SIMD_FLOAT CN1D2 = SIMD_SET1(-0.5f);
+SIMD_FLOAT C1D6 = SIMD_SET1(0.166666666667f);
+SIMD_FLOAT C1D3 = SIMD_SET1(0.333333333333f);
+SIMD_FLOAT C2D3 = SIMD_SET1(0.666666666667f);
+SIMD_FLOAT C4D3 = SIMD_SET1(1.33333333333f);
+
+out[0] = SIMD_MUL(in[0],C1D2);
+
+out[1] = SIMD_MUL(in[0],CN1D2);
+out[1] = SIMD_FMADD(in[IS],CN1D2,out[1]);
+out[1] = SIMD_FMADD(in[IS * 2],CN1D2,out[1]);
+out[1] = SIMD_FMADD(in[IS * 3],CN1D2,out[1]);
+
+out[2] = SIMD_MUL(in[IS],C1D6);
+out[2] = SIMD_FNMADD(in[0],C1D6,out[2]);
+out[2] = SIMD_FNMADD(in[IS * 2],C1D6,out[2]);
+out[2] = SIMD_FMADD(in[IS * 3],C1D6,out[2]);
+
+out[3] = SIMD_MUL(in[0],C1D6);
+out[3] = SIMD_FMADD(in[IS],C1D3,out[3]);
+out[3] = SIMD_FMADD(in[IS * 2],C2D3,out[3]);
+out[3] = SIMD_FMADD(in[IS * 3],C4D3,out[3]);
+
+out[4] = in[IS * 3];
+ 
+
+
+#pragma unroll(TS)
+    for (long_t i = 0; i < TS; i++)
+	{
+	  SIMD_STREAM(output + (base + i * STRIDE) * O_STRIDE, out[i]);
+	}
+}
+
+
+template <long_t M, long_t N, long_t OS, long_t IS>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 5>::type
+transform_filter_1d(SIMD_FLOAT* __restrict out, SIMD_FLOAT const* __restrict in)
+{ 
+SIMD_FLOAT C1D4 = SIMD_SET1(0.25f);
+SIMD_FLOAT CN1D6 = SIMD_SET1(-0.166666666667f);
+SIMD_FLOAT C1D24 = SIMD_SET1(0.0416666666667f);
+SIMD_FLOAT C1D12 = SIMD_SET1(0.0833333333333f);
+SIMD_FLOAT C1D3 = SIMD_SET1(0.333333333333f);
+SIMD_FLOAT C2D3 = SIMD_SET1(0.666666666667f);
+
+out[0] = SIMD_MUL(in[0],C1D4);
+
+SIMD_FLOAT V12S = SIMD_MUL(in[0],CN1D6);
+V12S = SIMD_FMADD(in[IS * 2],CN1D6,V12S);
+V12S = SIMD_FMADD(in[IS * 4],CN1D6,V12S);
+
+SIMD_FLOAT V12R = SIMD_MUL(in[IS],CN1D6);
+V12R = SIMD_FMADD(in[IS * 3],CN1D6,V12R);
+
+out[OS] = SIMD_ADD(V12S,V12R);
+
+out[OS * 2] = SIMD_SUB(V12S,V12R);
+ 
+SIMD_FLOAT V34S = SIMD_MUL(in[0],C1D24);
+V34S = SIMD_FNMADD(in[IS * 2],CN1D6,V34S);
+V34S = SIMD_FMADD(in[IS * 4],C2D3,V34S);
+
+SIMD_FLOAT V34R = SIMD_MUL(in[IS],C1D12);
+V34R = SIMD_FMADD(in[IS * 3],C1D3,V34R);
+
+out[OS * 3] = SIMD_ADD(V34S,V34R);
+
+out[OS * 4] = SIMD_SUB(V34S,V34R);
+ 
+out[OS * 5] = in[IS * 4];
+ 
+
+ }
+
+template <long_t M, long_t N, long_t O_STRIDE, long_t IS, long_t STRIDE>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 5>::type
+transform_filter_1d_last(float* __restrict output,
+                        SIMD_FLOAT const* __restrict in, long_t base)
+{
+static const long_t TS = M + N - 1;
+SIMD_FLOAT out[TS] __attribute__((aligned(64)));
+
+SIMD_FLOAT C1D4 = SIMD_SET1(0.25f);
+SIMD_FLOAT CN1D6 = SIMD_SET1(-0.166666666667f);
+SIMD_FLOAT C1D24 = SIMD_SET1(0.0416666666667f);
+SIMD_FLOAT C1D12 = SIMD_SET1(0.0833333333333f);
+SIMD_FLOAT C1D3 = SIMD_SET1(0.333333333333f);
+SIMD_FLOAT C2D3 = SIMD_SET1(0.666666666667f);
+
+out[0] = SIMD_MUL(in[0],C1D4);
+
+SIMD_FLOAT V12S = SIMD_MUL(in[0],CN1D6);
+V12S = SIMD_FMADD(in[IS * 2],CN1D6,V12S);
+V12S = SIMD_FMADD(in[IS * 4],CN1D6,V12S);
+
+SIMD_FLOAT V12R = SIMD_MUL(in[IS],CN1D6);
+V12R = SIMD_FMADD(in[IS * 3],CN1D6,V12R);
+
+out[1] = SIMD_ADD(V12S,V12R);
+
+out[2] = SIMD_SUB(V12S,V12R);
+ 
+SIMD_FLOAT V34S = SIMD_MUL(in[0],C1D24);
+V34S = SIMD_FNMADD(in[IS * 2],CN1D6,V34S);
+V34S = SIMD_FMADD(in[IS * 4],C2D3,V34S);
+
+SIMD_FLOAT V34R = SIMD_MUL(in[IS],C1D12);
+V34R = SIMD_FMADD(in[IS * 3],C1D3,V34R);
+
+out[3] = SIMD_ADD(V34S,V34R);
+
+out[4] = SIMD_SUB(V34S,V34R);
+ 
+out[5] = in[IS * 4];
+ 
+
+
+#pragma unroll(TS)
+    for (long_t i = 0; i < TS; i++)
+	{
+	  SIMD_STREAM(output + (base + i * STRIDE) * O_STRIDE, out[i]);
+	}
+}
+
+
+template <long_t M, long_t N, long_t OS, long_t IS>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 6>::type
+transform_filter_1d(SIMD_FLOAT* __restrict out, SIMD_FLOAT const* __restrict in)
+{ 
+SIMD_FLOAT C1D12 = SIMD_SET1(0.0833333333333f);
+SIMD_FLOAT C1D24 = SIMD_SET1(0.0416666666667f);
+SIMD_FLOAT CN1D6 = SIMD_SET1(-0.166666666667f);
+SIMD_FLOAT C1D3 = SIMD_SET1(0.333333333333f);
+SIMD_FLOAT C2D3 = SIMD_SET1(0.666666666667f);
+SIMD_FLOAT C4D3 = SIMD_SET1(1.33333333333f);
+SIMD_FLOAT C1D120 = SIMD_SET1(0.00833333333333f);
+SIMD_FLOAT C1D60 = SIMD_SET1(0.0166666666667f);
+SIMD_FLOAT C1D30 = SIMD_SET1(0.0333333333333f);
+SIMD_FLOAT C1D15 = SIMD_SET1(0.0666666666667f);
+SIMD_FLOAT C2D15 = SIMD_SET1(0.133333333333f);
+SIMD_FLOAT C4D15 = SIMD_SET1(0.266666666667f);
+SIMD_FLOAT C1D40 = SIMD_SET1(0.025f);
+SIMD_FLOAT C3D40 = SIMD_SET1(0.075f);
+SIMD_FLOAT C9D40 = SIMD_SET1(0.225f);
+SIMD_FLOAT C27D40 = SIMD_SET1(0.675f);
+SIMD_FLOAT C81D40 = SIMD_SET1(2.025f);
+
+out[0] = SIMD_MUL(in[0],C1D12);
+
+out[OS] = SIMD_MUL(in[0],C1D12);
+out[OS] = SIMD_FMADD(in[IS],C1D12,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 2],C1D12,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 3],C1D12,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 4],C1D12,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 5],C1D12,out[OS]);
+
+out[OS * 2] = SIMD_MUL(in[0],C1D24);
+out[OS * 2] = SIMD_FNMADD(in[IS],C1D24,out[OS * 2]);
+out[OS * 2] = SIMD_FMADD(in[IS * 2],C1D24,out[OS * 2]);
+out[OS * 2] = SIMD_FNMADD(in[IS * 3],C1D24,out[OS * 2]);
+out[OS * 2] = SIMD_FMADD(in[IS * 4],C1D24,out[OS * 2]);
+out[OS * 2] = SIMD_FNMADD(in[IS * 5],C1D24,out[OS * 2]);
+
+out[OS * 3] = SIMD_MUL(in[IS * 2],CN1D6);
+out[OS * 3] = SIMD_FNMADD(in[0],C1D24,out[OS * 3]);
+out[OS * 3] = SIMD_FNMADD(in[IS],C1D12,out[OS * 3]);
+out[OS * 3] = SIMD_FNMADD(in[IS * 3],C1D3,out[OS * 3]);
+out[OS * 3] = SIMD_FNMADD(in[IS * 4],C2D3,out[OS * 3]);
+out[OS * 3] = SIMD_FNMADD(in[IS * 5],C4D3,out[OS * 3]);
+
+out[OS * 4] = SIMD_MUL(in[IS],C1D60);
+out[OS * 4] = SIMD_FNMADD(in[0],C1D120,out[OS * 4]);
+out[OS * 4] = SIMD_FNMADD(in[IS * 2],C1D30,out[OS * 4]);
+out[OS * 4] = SIMD_FMADD(in[IS * 3],C1D15,out[OS * 4]);
+out[OS * 4] = SIMD_FNMADD(in[IS * 4],C2D15,out[OS * 4]);
+out[OS * 4] = SIMD_FMADD(in[IS * 5],C4D15,out[OS * 4]);
+
+out[OS * 5] = SIMD_MUL(in[0],C1D120);
+out[OS * 5] = SIMD_FMADD(in[IS],C1D40,out[OS * 5]);
+out[OS * 5] = SIMD_FMADD(in[IS * 2],C3D40,out[OS * 5]);
+out[OS * 5] = SIMD_FMADD(in[IS * 3],C9D40,out[OS * 5]);
+out[OS * 5] = SIMD_FMADD(in[IS * 4],C27D40,out[OS * 5]);
+out[OS * 5] = SIMD_FMADD(in[IS * 5],C81D40,out[OS * 5]);
+
+out[OS * 6] = in[IS * 5];
+ 
+
+ }
+
+template <long_t M, long_t N, long_t O_STRIDE, long_t IS, long_t STRIDE>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 6>::type
+transform_filter_1d_last(float* __restrict output,
+                        SIMD_FLOAT const* __restrict in, long_t base)
+{
+static const long_t TS = M + N - 1;
+SIMD_FLOAT out[TS] __attribute__((aligned(64)));
+
+SIMD_FLOAT C1D12 = SIMD_SET1(0.0833333333333f);
+SIMD_FLOAT C1D24 = SIMD_SET1(0.0416666666667f);
+SIMD_FLOAT CN1D6 = SIMD_SET1(-0.166666666667f);
+SIMD_FLOAT C1D3 = SIMD_SET1(0.333333333333f);
+SIMD_FLOAT C2D3 = SIMD_SET1(0.666666666667f);
+SIMD_FLOAT C4D3 = SIMD_SET1(1.33333333333f);
+SIMD_FLOAT C1D120 = SIMD_SET1(0.00833333333333f);
+SIMD_FLOAT C1D60 = SIMD_SET1(0.0166666666667f);
+SIMD_FLOAT C1D30 = SIMD_SET1(0.0333333333333f);
+SIMD_FLOAT C1D15 = SIMD_SET1(0.0666666666667f);
+SIMD_FLOAT C2D15 = SIMD_SET1(0.133333333333f);
+SIMD_FLOAT C4D15 = SIMD_SET1(0.266666666667f);
+SIMD_FLOAT C1D40 = SIMD_SET1(0.025f);
+SIMD_FLOAT C3D40 = SIMD_SET1(0.075f);
+SIMD_FLOAT C9D40 = SIMD_SET1(0.225f);
+SIMD_FLOAT C27D40 = SIMD_SET1(0.675f);
+SIMD_FLOAT C81D40 = SIMD_SET1(2.025f);
+
+out[0] = SIMD_MUL(in[0],C1D12);
+
+out[1] = SIMD_MUL(in[0],C1D12);
+out[1] = SIMD_FMADD(in[IS],C1D12,out[1]);
+out[1] = SIMD_FMADD(in[IS * 2],C1D12,out[1]);
+out[1] = SIMD_FMADD(in[IS * 3],C1D12,out[1]);
+out[1] = SIMD_FMADD(in[IS * 4],C1D12,out[1]);
+out[1] = SIMD_FMADD(in[IS * 5],C1D12,out[1]);
+
+out[2] = SIMD_MUL(in[0],C1D24);
+out[2] = SIMD_FNMADD(in[IS],C1D24,out[2]);
+out[2] = SIMD_FMADD(in[IS * 2],C1D24,out[2]);
+out[2] = SIMD_FNMADD(in[IS * 3],C1D24,out[2]);
+out[2] = SIMD_FMADD(in[IS * 4],C1D24,out[2]);
+out[2] = SIMD_FNMADD(in[IS * 5],C1D24,out[2]);
+
+out[3] = SIMD_MUL(in[IS * 2],CN1D6);
+out[3] = SIMD_FNMADD(in[0],C1D24,out[3]);
+out[3] = SIMD_FNMADD(in[IS],C1D12,out[3]);
+out[3] = SIMD_FNMADD(in[IS * 3],C1D3,out[3]);
+out[3] = SIMD_FNMADD(in[IS * 4],C2D3,out[3]);
+out[3] = SIMD_FNMADD(in[IS * 5],C4D3,out[3]);
+
+out[4] = SIMD_MUL(in[IS],C1D60);
+out[4] = SIMD_FNMADD(in[0],C1D120,out[4]);
+out[4] = SIMD_FNMADD(in[IS * 2],C1D30,out[4]);
+out[4] = SIMD_FMADD(in[IS * 3],C1D15,out[4]);
+out[4] = SIMD_FNMADD(in[IS * 4],C2D15,out[4]);
+out[4] = SIMD_FMADD(in[IS * 5],C4D15,out[4]);
+
+out[5] = SIMD_MUL(in[0],C1D120);
+out[5] = SIMD_FMADD(in[IS],C1D40,out[5]);
+out[5] = SIMD_FMADD(in[IS * 2],C3D40,out[5]);
+out[5] = SIMD_FMADD(in[IS * 3],C9D40,out[5]);
+out[5] = SIMD_FMADD(in[IS * 4],C27D40,out[5]);
+out[5] = SIMD_FMADD(in[IS * 5],C81D40,out[5]);
+
+out[6] = in[IS * 5];
+ 
+
+
+#pragma unroll(TS)
+    for (long_t i = 0; i < TS; i++)
+	{
+	  SIMD_STREAM(output + (base + i * STRIDE) * O_STRIDE, out[i]);
+	}
+}
+
+
+template <long_t M, long_t N, long_t OS, long_t IS>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 7>::type
+transform_filter_1d(SIMD_FLOAT* __restrict out, SIMD_FLOAT const* __restrict in)
+{ 
+SIMD_FLOAT C1D36 = SIMD_SET1(0.0277777777778f);
+SIMD_FLOAT C1D48 = SIMD_SET1(0.0208333333333f);
+SIMD_FLOAT CN1D120 = SIMD_SET1(-0.00833333333333f);
+SIMD_FLOAT C1D60 = SIMD_SET1(0.0166666666667f);
+SIMD_FLOAT C1D30 = SIMD_SET1(0.0333333333333f);
+SIMD_FLOAT C1D15 = SIMD_SET1(0.0666666666667f);
+SIMD_FLOAT C2D15 = SIMD_SET1(0.133333333333f);
+SIMD_FLOAT C4D15 = SIMD_SET1(0.266666666667f);
+SIMD_FLOAT C8D15 = SIMD_SET1(0.533333333333f);
+SIMD_FLOAT C1D720 = SIMD_SET1(0.00138888888889f);
+SIMD_FLOAT C1D240 = SIMD_SET1(0.00416666666667f);
+SIMD_FLOAT C1D80 = SIMD_SET1(0.0125f);
+SIMD_FLOAT C3D80 = SIMD_SET1(0.0375f);
+SIMD_FLOAT C9D80 = SIMD_SET1(0.1125f);
+SIMD_FLOAT C27D80 = SIMD_SET1(0.3375f);
+SIMD_FLOAT C81D80 = SIMD_SET1(1.0125f);
+
+out[0] = SIMD_MUL(in[0],C1D36);
+
+SIMD_FLOAT V12S = SIMD_MUL(in[0],C1D48);
+V12S = SIMD_FMADD(in[IS * 2],C1D48,V12S);
+V12S = SIMD_FMADD(in[IS * 4],C1D48,V12S);
+V12S = SIMD_FMADD(in[IS * 6],C1D48,V12S);
+
+SIMD_FLOAT V12R = SIMD_MUL(in[IS],C1D48);
+V12R = SIMD_FMADD(in[IS * 3],C1D48,V12R);
+V12R = SIMD_FMADD(in[IS * 5],C1D48,V12R);
+
+out[OS] = SIMD_ADD(V12S,V12R);
+
+out[OS * 2] = SIMD_SUB(V12S,V12R);
+ 
+SIMD_FLOAT V34S = SIMD_MUL(in[0],CN1D120);
+V34S = SIMD_FNMADD(in[IS * 2],C1D30,V34S);
+V34S = SIMD_FNMADD(in[IS * 4],C2D15,V34S);
+V34S = SIMD_FNMADD(in[IS * 6],C8D15,V34S);
+
+SIMD_FLOAT V34R = SIMD_MUL(in[IS],C1D60);
+V34R = SIMD_FMADD(in[IS * 3],C1D15,V34R);
+V34R = SIMD_FMADD(in[IS * 5],C4D15,V34R);
+
+out[OS * 3] = SIMD_SUB(V34S,V34R);
+
+out[OS * 4] = SIMD_ADD(V34S,V34R);
+ 
+SIMD_FLOAT V56S = SIMD_MUL(in[0],C1D720);
+V56S = SIMD_FMADD(in[IS * 2],C1D80,V56S);
+V56S = SIMD_FMADD(in[IS * 4],C9D80,V56S);
+V56S = SIMD_FMADD(in[IS * 6],C81D80,V56S);
+
+SIMD_FLOAT V56R = SIMD_MUL(in[IS],C1D240);
+V56R = SIMD_FMADD(in[IS * 3],C3D80,V56R);
+V56R = SIMD_FMADD(in[IS * 5],C27D80,V56R);
+
+out[OS * 5] = SIMD_ADD(V56S,V56R);
+
+out[OS * 6] = SIMD_SUB(V56S,V56R);
+ 
+out[OS * 7] = in[IS * 6];
+ 
+
+ }
+
+template <long_t M, long_t N, long_t O_STRIDE, long_t IS, long_t STRIDE>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 7>::type
+transform_filter_1d_last(float* __restrict output,
+                        SIMD_FLOAT const* __restrict in, long_t base)
+{
+static const long_t TS = M + N - 1;
+SIMD_FLOAT out[TS] __attribute__((aligned(64)));
+
+SIMD_FLOAT C1D36 = SIMD_SET1(0.0277777777778f);
+SIMD_FLOAT C1D48 = SIMD_SET1(0.0208333333333f);
+SIMD_FLOAT CN1D120 = SIMD_SET1(-0.00833333333333f);
+SIMD_FLOAT C1D60 = SIMD_SET1(0.0166666666667f);
+SIMD_FLOAT C1D30 = SIMD_SET1(0.0333333333333f);
+SIMD_FLOAT C1D15 = SIMD_SET1(0.0666666666667f);
+SIMD_FLOAT C2D15 = SIMD_SET1(0.133333333333f);
+SIMD_FLOAT C4D15 = SIMD_SET1(0.266666666667f);
+SIMD_FLOAT C8D15 = SIMD_SET1(0.533333333333f);
+SIMD_FLOAT C1D720 = SIMD_SET1(0.00138888888889f);
+SIMD_FLOAT C1D240 = SIMD_SET1(0.00416666666667f);
+SIMD_FLOAT C1D80 = SIMD_SET1(0.0125f);
+SIMD_FLOAT C3D80 = SIMD_SET1(0.0375f);
+SIMD_FLOAT C9D80 = SIMD_SET1(0.1125f);
+SIMD_FLOAT C27D80 = SIMD_SET1(0.3375f);
+SIMD_FLOAT C81D80 = SIMD_SET1(1.0125f);
+
+out[0] = SIMD_MUL(in[0],C1D36);
+
+SIMD_FLOAT V12S = SIMD_MUL(in[0],C1D48);
+V12S = SIMD_FMADD(in[IS * 2],C1D48,V12S);
+V12S = SIMD_FMADD(in[IS * 4],C1D48,V12S);
+V12S = SIMD_FMADD(in[IS * 6],C1D48,V12S);
+
+SIMD_FLOAT V12R = SIMD_MUL(in[IS],C1D48);
+V12R = SIMD_FMADD(in[IS * 3],C1D48,V12R);
+V12R = SIMD_FMADD(in[IS * 5],C1D48,V12R);
+
+out[1] = SIMD_ADD(V12S,V12R);
+
+out[2] = SIMD_SUB(V12S,V12R);
+ 
+SIMD_FLOAT V34S = SIMD_MUL(in[0],CN1D120);
+V34S = SIMD_FNMADD(in[IS * 2],C1D30,V34S);
+V34S = SIMD_FNMADD(in[IS * 4],C2D15,V34S);
+V34S = SIMD_FNMADD(in[IS * 6],C8D15,V34S);
+
+SIMD_FLOAT V34R = SIMD_MUL(in[IS],C1D60);
+V34R = SIMD_FMADD(in[IS * 3],C1D15,V34R);
+V34R = SIMD_FMADD(in[IS * 5],C4D15,V34R);
+
+out[3] = SIMD_SUB(V34S,V34R);
+
+out[4] = SIMD_ADD(V34S,V34R);
+ 
+SIMD_FLOAT V56S = SIMD_MUL(in[0],C1D720);
+V56S = SIMD_FMADD(in[IS * 2],C1D80,V56S);
+V56S = SIMD_FMADD(in[IS * 4],C9D80,V56S);
+V56S = SIMD_FMADD(in[IS * 6],C81D80,V56S);
+
+SIMD_FLOAT V56R = SIMD_MUL(in[IS],C1D240);
+V56R = SIMD_FMADD(in[IS * 3],C3D80,V56R);
+V56R = SIMD_FMADD(in[IS * 5],C27D80,V56R);
+
+out[5] = SIMD_ADD(V56S,V56R);
+
+out[6] = SIMD_SUB(V56S,V56R);
+ 
+out[7] = in[IS * 6];
+ 
+
+
+#pragma unroll(TS)
+    for (long_t i = 0; i < TS; i++)
+	{
+	  SIMD_STREAM(output + (base + i * STRIDE) * O_STRIDE, out[i]);
+	}
+}
+
+
+template <long_t M, long_t N, long_t OS, long_t IS>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 8>::type
+transform_filter_1d(SIMD_FLOAT* __restrict out, SIMD_FLOAT const* __restrict in)
+{ 
+SIMD_FLOAT C1D144 = SIMD_SET1(0.00694444444444f);
+SIMD_FLOAT CN1D144 = SIMD_SET1(-0.00694444444444f);
+SIMD_FLOAT C1D240 = SIMD_SET1(0.00416666666667f);
+SIMD_FLOAT C1D120 = SIMD_SET1(0.00833333333333f);
+SIMD_FLOAT C1D60 = SIMD_SET1(0.0166666666667f);
+SIMD_FLOAT C1D30 = SIMD_SET1(0.0333333333333f);
+SIMD_FLOAT C1D15 = SIMD_SET1(0.0666666666667f);
+SIMD_FLOAT C2D15 = SIMD_SET1(0.133333333333f);
+SIMD_FLOAT C4D15 = SIMD_SET1(0.266666666667f);
+SIMD_FLOAT C8D15 = SIMD_SET1(0.533333333333f);
+SIMD_FLOAT C1D720 = SIMD_SET1(0.00138888888889f);
+SIMD_FLOAT C1D360 = SIMD_SET1(0.00277777777778f);
+SIMD_FLOAT C1D180 = SIMD_SET1(0.00555555555556f);
+SIMD_FLOAT C1D90 = SIMD_SET1(0.0111111111111f);
+SIMD_FLOAT C1D45 = SIMD_SET1(0.0222222222222f);
+SIMD_FLOAT C2D45 = SIMD_SET1(0.0444444444444f);
+SIMD_FLOAT C4D45 = SIMD_SET1(0.0888888888889f);
+SIMD_FLOAT C8D45 = SIMD_SET1(0.177777777778f);
+SIMD_FLOAT CN1D80 = SIMD_SET1(-0.0125f);
+SIMD_FLOAT C3D80 = SIMD_SET1(0.0375f);
+SIMD_FLOAT C9D80 = SIMD_SET1(0.1125f);
+SIMD_FLOAT C27D80 = SIMD_SET1(0.3375f);
+SIMD_FLOAT C81D80 = SIMD_SET1(1.0125f);
+SIMD_FLOAT C243D80 = SIMD_SET1(3.0375f);
+SIMD_FLOAT C1D5040 = SIMD_SET1(0.000198412698413f);
+SIMD_FLOAT C1D1680 = SIMD_SET1(0.000595238095238f);
+SIMD_FLOAT C1D560 = SIMD_SET1(0.00178571428571f);
+SIMD_FLOAT C3D560 = SIMD_SET1(0.00535714285714f);
+SIMD_FLOAT C9D560 = SIMD_SET1(0.0160714285714f);
+SIMD_FLOAT C27D560 = SIMD_SET1(0.0482142857143f);
+SIMD_FLOAT C81D560 = SIMD_SET1(0.144642857143f);
+SIMD_FLOAT C243D560 = SIMD_SET1(0.433928571429f);
+SIMD_FLOAT C1D1260 = SIMD_SET1(0.000793650793651f);
+SIMD_FLOAT C1D315 = SIMD_SET1(0.0031746031746f);
+SIMD_FLOAT C4D315 = SIMD_SET1(0.0126984126984f);
+SIMD_FLOAT C16D315 = SIMD_SET1(0.0507936507937f);
+SIMD_FLOAT C64D315 = SIMD_SET1(0.203174603175f);
+SIMD_FLOAT C256D315 = SIMD_SET1(0.812698412698f);
+SIMD_FLOAT C1024D315 = SIMD_SET1(3.25079365079f);
+
+out[0] = SIMD_MUL(in[0],C1D144);
+
+out[OS] = SIMD_MUL(in[0],CN1D144);
+out[OS] = SIMD_FMADD(in[IS],CN1D144,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 2],CN1D144,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 3],CN1D144,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 4],CN1D144,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 5],CN1D144,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 6],CN1D144,out[OS]);
+out[OS] = SIMD_FMADD(in[IS * 7],CN1D144,out[OS]);
+
+out[OS * 2] = SIMD_MUL(in[IS],C1D240);
+out[OS * 2] = SIMD_FNMADD(in[0],C1D240,out[OS * 2]);
+out[OS * 2] = SIMD_FNMADD(in[IS * 2],C1D240,out[OS * 2]);
+out[OS * 2] = SIMD_FMADD(in[IS * 3],C1D240,out[OS * 2]);
+out[OS * 2] = SIMD_FNMADD(in[IS * 4],C1D240,out[OS * 2]);
+out[OS * 2] = SIMD_FMADD(in[IS * 5],C1D240,out[OS * 2]);
+out[OS * 2] = SIMD_FNMADD(in[IS * 6],C1D240,out[OS * 2]);
+out[OS * 2] = SIMD_FMADD(in[IS * 7],C1D240,out[OS * 2]);
+
+out[OS * 3] = SIMD_MUL(in[0],C1D240);
+out[OS * 3] = SIMD_FMADD(in[IS],C1D120,out[OS * 3]);
+out[OS * 3] = SIMD_FMADD(in[IS * 2],C1D60,out[OS * 3]);
+out[OS * 3] = SIMD_FMADD(in[IS * 3],C1D30,out[OS * 3]);
+out[OS * 3] = SIMD_FMADD(in[IS * 4],C1D15,out[OS * 3]);
+out[OS * 3] = SIMD_FMADD(in[IS * 5],C2D15,out[OS * 3]);
+out[OS * 3] = SIMD_FMADD(in[IS * 6],C4D15,out[OS * 3]);
+out[OS * 3] = SIMD_FMADD(in[IS * 7],C8D15,out[OS * 3]);
+
+out[OS * 4] = SIMD_MUL(in[0],C1D720);
+out[OS * 4] = SIMD_FNMADD(in[IS],C1D360,out[OS * 4]);
+out[OS * 4] = SIMD_FMADD(in[IS * 2],C1D180,out[OS * 4]);
+out[OS * 4] = SIMD_FNMADD(in[IS * 3],C1D90,out[OS * 4]);
+out[OS * 4] = SIMD_FMADD(in[IS * 4],C1D45,out[OS * 4]);
+out[OS * 4] = SIMD_FNMADD(in[IS * 5],C2D45,out[OS * 4]);
+out[OS * 4] = SIMD_FMADD(in[IS * 6],C4D45,out[OS * 4]);
+out[OS * 4] = SIMD_FNMADD(in[IS * 7],C8D45,out[OS * 4]);
+
+out[OS * 5] = SIMD_MUL(in[IS * 2],CN1D80);
+out[OS * 5] = SIMD_FNMADD(in[0],C1D720,out[OS * 5]);
+out[OS * 5] = SIMD_FNMADD(in[IS],C1D240,out[OS * 5]);
+out[OS * 5] = SIMD_FNMADD(in[IS * 3],C3D80,out[OS * 5]);
+out[OS * 5] = SIMD_FNMADD(in[IS * 4],C9D80,out[OS * 5]);
+out[OS * 5] = SIMD_FNMADD(in[IS * 5],C27D80,out[OS * 5]);
+out[OS * 5] = SIMD_FNMADD(in[IS * 6],C81D80,out[OS * 5]);
+out[OS * 5] = SIMD_FNMADD(in[IS * 7],C243D80,out[OS * 5]);
+
+out[OS * 6] = SIMD_MUL(in[IS],C1D1680);
+out[OS * 6] = SIMD_FNMADD(in[0],C1D5040,out[OS * 6]);
+out[OS * 6] = SIMD_FNMADD(in[IS * 2],C1D560,out[OS * 6]);
+out[OS * 6] = SIMD_FMADD(in[IS * 3],C3D560,out[OS * 6]);
+out[OS * 6] = SIMD_FNMADD(in[IS * 4],C9D560,out[OS * 6]);
+out[OS * 6] = SIMD_FMADD(in[IS * 5],C27D560,out[OS * 6]);
+out[OS * 6] = SIMD_FNMADD(in[IS * 6],C81D560,out[OS * 6]);
+out[OS * 6] = SIMD_FMADD(in[IS * 7],C243D560,out[OS * 6]);
+
+out[OS * 7] = SIMD_MUL(in[0],C1D5040);
+out[OS * 7] = SIMD_FMADD(in[IS],C1D1260,out[OS * 7]);
+out[OS * 7] = SIMD_FMADD(in[IS * 2],C1D315,out[OS * 7]);
+out[OS * 7] = SIMD_FMADD(in[IS * 3],C4D315,out[OS * 7]);
+out[OS * 7] = SIMD_FMADD(in[IS * 4],C16D315,out[OS * 7]);
+out[OS * 7] = SIMD_FMADD(in[IS * 5],C64D315,out[OS * 7]);
+out[OS * 7] = SIMD_FMADD(in[IS * 6],C256D315,out[OS * 7]);
+out[OS * 7] = SIMD_FMADD(in[IS * 7],C1024D315,out[OS * 7]);
+
+out[OS * 8] = in[IS * 7];
+ 
+
+ }
+
+template <long_t M, long_t N, long_t O_STRIDE, long_t IS, long_t STRIDE>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 8>::type
+transform_filter_1d_last(float* __restrict output,
+                        SIMD_FLOAT const* __restrict in, long_t base)
+{
+static const long_t TS = M + N - 1;
+SIMD_FLOAT out[TS] __attribute__((aligned(64)));
+
+SIMD_FLOAT C1D144 = SIMD_SET1(0.00694444444444f);
+SIMD_FLOAT CN1D144 = SIMD_SET1(-0.00694444444444f);
+SIMD_FLOAT C1D240 = SIMD_SET1(0.00416666666667f);
+SIMD_FLOAT C1D120 = SIMD_SET1(0.00833333333333f);
+SIMD_FLOAT C1D60 = SIMD_SET1(0.0166666666667f);
+SIMD_FLOAT C1D30 = SIMD_SET1(0.0333333333333f);
+SIMD_FLOAT C1D15 = SIMD_SET1(0.0666666666667f);
+SIMD_FLOAT C2D15 = SIMD_SET1(0.133333333333f);
+SIMD_FLOAT C4D15 = SIMD_SET1(0.266666666667f);
+SIMD_FLOAT C8D15 = SIMD_SET1(0.533333333333f);
+SIMD_FLOAT C1D720 = SIMD_SET1(0.00138888888889f);
+SIMD_FLOAT C1D360 = SIMD_SET1(0.00277777777778f);
+SIMD_FLOAT C1D180 = SIMD_SET1(0.00555555555556f);
+SIMD_FLOAT C1D90 = SIMD_SET1(0.0111111111111f);
+SIMD_FLOAT C1D45 = SIMD_SET1(0.0222222222222f);
+SIMD_FLOAT C2D45 = SIMD_SET1(0.0444444444444f);
+SIMD_FLOAT C4D45 = SIMD_SET1(0.0888888888889f);
+SIMD_FLOAT C8D45 = SIMD_SET1(0.177777777778f);
+SIMD_FLOAT CN1D80 = SIMD_SET1(-0.0125f);
+SIMD_FLOAT C3D80 = SIMD_SET1(0.0375f);
+SIMD_FLOAT C9D80 = SIMD_SET1(0.1125f);
+SIMD_FLOAT C27D80 = SIMD_SET1(0.3375f);
+SIMD_FLOAT C81D80 = SIMD_SET1(1.0125f);
+SIMD_FLOAT C243D80 = SIMD_SET1(3.0375f);
+SIMD_FLOAT C1D5040 = SIMD_SET1(0.000198412698413f);
+SIMD_FLOAT C1D1680 = SIMD_SET1(0.000595238095238f);
+SIMD_FLOAT C1D560 = SIMD_SET1(0.00178571428571f);
+SIMD_FLOAT C3D560 = SIMD_SET1(0.00535714285714f);
+SIMD_FLOAT C9D560 = SIMD_SET1(0.0160714285714f);
+SIMD_FLOAT C27D560 = SIMD_SET1(0.0482142857143f);
+SIMD_FLOAT C81D560 = SIMD_SET1(0.144642857143f);
+SIMD_FLOAT C243D560 = SIMD_SET1(0.433928571429f);
+SIMD_FLOAT C1D1260 = SIMD_SET1(0.000793650793651f);
+SIMD_FLOAT C1D315 = SIMD_SET1(0.0031746031746f);
+SIMD_FLOAT C4D315 = SIMD_SET1(0.0126984126984f);
+SIMD_FLOAT C16D315 = SIMD_SET1(0.0507936507937f);
+SIMD_FLOAT C64D315 = SIMD_SET1(0.203174603175f);
+SIMD_FLOAT C256D315 = SIMD_SET1(0.812698412698f);
+SIMD_FLOAT C1024D315 = SIMD_SET1(3.25079365079f);
+
+out[0] = SIMD_MUL(in[0],C1D144);
+
+out[1] = SIMD_MUL(in[0],CN1D144);
+out[1] = SIMD_FMADD(in[IS],CN1D144,out[1]);
+out[1] = SIMD_FMADD(in[IS * 2],CN1D144,out[1]);
+out[1] = SIMD_FMADD(in[IS * 3],CN1D144,out[1]);
+out[1] = SIMD_FMADD(in[IS * 4],CN1D144,out[1]);
+out[1] = SIMD_FMADD(in[IS * 5],CN1D144,out[1]);
+out[1] = SIMD_FMADD(in[IS * 6],CN1D144,out[1]);
+out[1] = SIMD_FMADD(in[IS * 7],CN1D144,out[1]);
+
+out[2] = SIMD_MUL(in[IS],C1D240);
+out[2] = SIMD_FNMADD(in[0],C1D240,out[2]);
+out[2] = SIMD_FNMADD(in[IS * 2],C1D240,out[2]);
+out[2] = SIMD_FMADD(in[IS * 3],C1D240,out[2]);
+out[2] = SIMD_FNMADD(in[IS * 4],C1D240,out[2]);
+out[2] = SIMD_FMADD(in[IS * 5],C1D240,out[2]);
+out[2] = SIMD_FNMADD(in[IS * 6],C1D240,out[2]);
+out[2] = SIMD_FMADD(in[IS * 7],C1D240,out[2]);
+
+out[3] = SIMD_MUL(in[0],C1D240);
+out[3] = SIMD_FMADD(in[IS],C1D120,out[3]);
+out[3] = SIMD_FMADD(in[IS * 2],C1D60,out[3]);
+out[3] = SIMD_FMADD(in[IS * 3],C1D30,out[3]);
+out[3] = SIMD_FMADD(in[IS * 4],C1D15,out[3]);
+out[3] = SIMD_FMADD(in[IS * 5],C2D15,out[3]);
+out[3] = SIMD_FMADD(in[IS * 6],C4D15,out[3]);
+out[3] = SIMD_FMADD(in[IS * 7],C8D15,out[3]);
+
+out[4] = SIMD_MUL(in[0],C1D720);
+out[4] = SIMD_FNMADD(in[IS],C1D360,out[4]);
+out[4] = SIMD_FMADD(in[IS * 2],C1D180,out[4]);
+out[4] = SIMD_FNMADD(in[IS * 3],C1D90,out[4]);
+out[4] = SIMD_FMADD(in[IS * 4],C1D45,out[4]);
+out[4] = SIMD_FNMADD(in[IS * 5],C2D45,out[4]);
+out[4] = SIMD_FMADD(in[IS * 6],C4D45,out[4]);
+out[4] = SIMD_FNMADD(in[IS * 7],C8D45,out[4]);
+
+out[5] = SIMD_MUL(in[IS * 2],CN1D80);
+out[5] = SIMD_FNMADD(in[0],C1D720,out[5]);
+out[5] = SIMD_FNMADD(in[IS],C1D240,out[5]);
+out[5] = SIMD_FNMADD(in[IS * 3],C3D80,out[5]);
+out[5] = SIMD_FNMADD(in[IS * 4],C9D80,out[5]);
+out[5] = SIMD_FNMADD(in[IS * 5],C27D80,out[5]);
+out[5] = SIMD_FNMADD(in[IS * 6],C81D80,out[5]);
+out[5] = SIMD_FNMADD(in[IS * 7],C243D80,out[5]);
+
+out[6] = SIMD_MUL(in[IS],C1D1680);
+out[6] = SIMD_FNMADD(in[0],C1D5040,out[6]);
+out[6] = SIMD_FNMADD(in[IS * 2],C1D560,out[6]);
+out[6] = SIMD_FMADD(in[IS * 3],C3D560,out[6]);
+out[6] = SIMD_FNMADD(in[IS * 4],C9D560,out[6]);
+out[6] = SIMD_FMADD(in[IS * 5],C27D560,out[6]);
+out[6] = SIMD_FNMADD(in[IS * 6],C81D560,out[6]);
+out[6] = SIMD_FMADD(in[IS * 7],C243D560,out[6]);
+
+out[7] = SIMD_MUL(in[0],C1D5040);
+out[7] = SIMD_FMADD(in[IS],C1D1260,out[7]);
+out[7] = SIMD_FMADD(in[IS * 2],C1D315,out[7]);
+out[7] = SIMD_FMADD(in[IS * 3],C4D315,out[7]);
+out[7] = SIMD_FMADD(in[IS * 4],C16D315,out[7]);
+out[7] = SIMD_FMADD(in[IS * 5],C64D315,out[7]);
+out[7] = SIMD_FMADD(in[IS * 6],C256D315,out[7]);
+out[7] = SIMD_FMADD(in[IS * 7],C1024D315,out[7]);
+
+out[8] = in[IS * 7];
+ 
+
+
+#pragma unroll(TS)
+    for (long_t i = 0; i < TS; i++)
+	{
+	  SIMD_STREAM(output + (base + i * STRIDE) * O_STRIDE, out[i]);
+	}
+}
+
+
+template <long_t M, long_t N, long_t OS, long_t IS>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 9>::type
+transform_filter_1d(SIMD_FLOAT* __restrict out, SIMD_FLOAT const* __restrict in)
+{ 
+SIMD_FLOAT C1D576 = SIMD_SET1(0.00173611111111f);
+SIMD_FLOAT CN1D720 = SIMD_SET1(-0.00138888888889f);
+SIMD_FLOAT C1D1440 = SIMD_SET1(0.000694444444444f);
+SIMD_FLOAT C1D360 = SIMD_SET1(0.00277777777778f);
+SIMD_FLOAT C1D180 = SIMD_SET1(0.00555555555556f);
+SIMD_FLOAT C1D90 = SIMD_SET1(0.0111111111111f);
+SIMD_FLOAT C1D45 = SIMD_SET1(0.0222222222222f);
+SIMD_FLOAT C2D45 = SIMD_SET1(0.0444444444444f);
+SIMD_FLOAT C4D45 = SIMD_SET1(0.0888888888889f);
+SIMD_FLOAT C8D45 = SIMD_SET1(0.177777777778f);
+SIMD_FLOAT CN1D5040 = SIMD_SET1(-0.000198412698413f);
+SIMD_FLOAT C1D1680 = SIMD_SET1(0.000595238095238f);
+SIMD_FLOAT C1D560 = SIMD_SET1(0.00178571428571f);
+SIMD_FLOAT C3D560 = SIMD_SET1(0.00535714285714f);
+SIMD_FLOAT C9D560 = SIMD_SET1(0.0160714285714f);
+SIMD_FLOAT C27D560 = SIMD_SET1(0.0482142857143f);
+SIMD_FLOAT C81D560 = SIMD_SET1(0.144642857143f);
+SIMD_FLOAT C243D560 = SIMD_SET1(0.433928571429f);
+SIMD_FLOAT C729D560 = SIMD_SET1(1.30178571429f);
+SIMD_FLOAT C1D40320 = SIMD_SET1(2.48015873016e-05f);
+SIMD_FLOAT C1D10080 = SIMD_SET1(9.92063492063e-05f);
+SIMD_FLOAT C1D2520 = SIMD_SET1(0.000396825396825f);
+SIMD_FLOAT C1D630 = SIMD_SET1(0.0015873015873f);
+SIMD_FLOAT C2D315 = SIMD_SET1(0.00634920634921f);
+SIMD_FLOAT C8D315 = SIMD_SET1(0.0253968253968f);
+SIMD_FLOAT C32D315 = SIMD_SET1(0.101587301587f);
+SIMD_FLOAT C128D315 = SIMD_SET1(0.406349206349f);
+SIMD_FLOAT C512D315 = SIMD_SET1(1.6253968254f);
+
+out[0] = SIMD_MUL(in[0],C1D576);
+
+SIMD_FLOAT V12S = SIMD_MUL(in[0],CN1D720);
+V12S = SIMD_FMADD(in[IS * 2],CN1D720,V12S);
+V12S = SIMD_FMADD(in[IS * 4],CN1D720,V12S);
+V12S = SIMD_FMADD(in[IS * 6],CN1D720,V12S);
+V12S = SIMD_FMADD(in[IS * 8],CN1D720,V12S);
+
+SIMD_FLOAT V12R = SIMD_MUL(in[IS],CN1D720);
+V12R = SIMD_FMADD(in[IS * 3],CN1D720,V12R);
+V12R = SIMD_FMADD(in[IS * 5],CN1D720,V12R);
+V12R = SIMD_FMADD(in[IS * 7],CN1D720,V12R);
+
+out[OS] = SIMD_ADD(V12S,V12R);
+
+out[OS * 2] = SIMD_SUB(V12S,V12R);
+ 
+SIMD_FLOAT V34S = SIMD_MUL(in[0],C1D1440);
+V34S = SIMD_FMADD(in[IS * 2],C1D360,V34S);
+V34S = SIMD_FMADD(in[IS * 4],C1D90,V34S);
+V34S = SIMD_FMADD(in[IS * 6],C2D45,V34S);
+V34S = SIMD_FMADD(in[IS * 8],C8D45,V34S);
+
+SIMD_FLOAT V34R = SIMD_MUL(in[IS * 3],C1D180);
+V34R = SIMD_FNMADD(in[IS],CN1D720,V34R);
+V34R = SIMD_FMADD(in[IS * 5],C1D45,V34R);
+V34R = SIMD_FMADD(in[IS * 7],C4D45,V34R);
+
+out[OS * 3] = SIMD_ADD(V34S,V34R);
+
+out[OS * 4] = SIMD_SUB(V34S,V34R);
+ 
+SIMD_FLOAT V56S = SIMD_MUL(in[0],CN1D5040);
+V56S = SIMD_FNMADD(in[IS * 2],C1D560,V56S);
+V56S = SIMD_FNMADD(in[IS * 4],C9D560,V56S);
+V56S = SIMD_FNMADD(in[IS * 6],C81D560,V56S);
+V56S = SIMD_FNMADD(in[IS * 8],C729D560,V56S);
+
+SIMD_FLOAT V56R = SIMD_MUL(in[IS],C1D1680);
+V56R = SIMD_FMADD(in[IS * 3],C3D560,V56R);
+V56R = SIMD_FMADD(in[IS * 5],C27D560,V56R);
+V56R = SIMD_FMADD(in[IS * 7],C243D560,V56R);
+
+out[OS * 5] = SIMD_SUB(V56S,V56R);
+
+out[OS * 6] = SIMD_ADD(V56S,V56R);
+ 
+SIMD_FLOAT V78S = SIMD_MUL(in[0],C1D40320);
+V78S = SIMD_FMADD(in[IS * 2],C1D2520,V78S);
+V78S = SIMD_FMADD(in[IS * 4],C2D315,V78S);
+V78S = SIMD_FMADD(in[IS * 6],C32D315,V78S);
+V78S = SIMD_FMADD(in[IS * 8],C512D315,V78S);
+
+SIMD_FLOAT V78R = SIMD_MUL(in[IS],C1D10080);
+V78R = SIMD_FMADD(in[IS * 3],C1D630,V78R);
+V78R = SIMD_FMADD(in[IS * 5],C8D315,V78R);
+V78R = SIMD_FMADD(in[IS * 7],C128D315,V78R);
+
+out[OS * 7] = SIMD_ADD(V78S,V78R);
+
+out[OS * 8] = SIMD_SUB(V78S,V78R);
+ 
+out[OS * 9] = in[IS * 8];
+ 
+
+ }
+
+template <long_t M, long_t N, long_t O_STRIDE, long_t IS, long_t STRIDE>
+inline __attribute__((always_inline))
+typename std::enable_if<M == 2 && N == 9>::type
+transform_filter_1d_last(float* __restrict output,
+                        SIMD_FLOAT const* __restrict in, long_t base)
+{
+static const long_t TS = M + N - 1;
+SIMD_FLOAT out[TS] __attribute__((aligned(64)));
+
+SIMD_FLOAT C1D576 = SIMD_SET1(0.00173611111111f);
+SIMD_FLOAT CN1D720 = SIMD_SET1(-0.00138888888889f);
+SIMD_FLOAT C1D1440 = SIMD_SET1(0.000694444444444f);
+SIMD_FLOAT C1D360 = SIMD_SET1(0.00277777777778f);
+SIMD_FLOAT C1D180 = SIMD_SET1(0.00555555555556f);
+SIMD_FLOAT C1D90 = SIMD_SET1(0.0111111111111f);
+SIMD_FLOAT C1D45 = SIMD_SET1(0.0222222222222f);
+SIMD_FLOAT C2D45 = SIMD_SET1(0.0444444444444f);
+SIMD_FLOAT C4D45 = SIMD_SET1(0.0888888888889f);
+SIMD_FLOAT C8D45 = SIMD_SET1(0.177777777778f);
+SIMD_FLOAT CN1D5040 = SIMD_SET1(-0.000198412698413f);
+SIMD_FLOAT C1D1680 = SIMD_SET1(0.000595238095238f);
+SIMD_FLOAT C1D560 = SIMD_SET1(0.00178571428571f);
+SIMD_FLOAT C3D560 = SIMD_SET1(0.00535714285714f);
+SIMD_FLOAT C9D560 = SIMD_SET1(0.0160714285714f);
+SIMD_FLOAT C27D560 = SIMD_SET1(0.0482142857143f);
+SIMD_FLOAT C81D560 = SIMD_SET1(0.144642857143f);
+SIMD_FLOAT C243D560 = SIMD_SET1(0.433928571429f);
+SIMD_FLOAT C729D560 = SIMD_SET1(1.30178571429f);
+SIMD_FLOAT C1D40320 = SIMD_SET1(2.48015873016e-05f);
+SIMD_FLOAT C1D10080 = SIMD_SET1(9.92063492063e-05f);
+SIMD_FLOAT C1D2520 = SIMD_SET1(0.000396825396825f);
+SIMD_FLOAT C1D630 = SIMD_SET1(0.0015873015873f);
+SIMD_FLOAT C2D315 = SIMD_SET1(0.00634920634921f);
+SIMD_FLOAT C8D315 = SIMD_SET1(0.0253968253968f);
+SIMD_FLOAT C32D315 = SIMD_SET1(0.101587301587f);
+SIMD_FLOAT C128D315 = SIMD_SET1(0.406349206349f);
+SIMD_FLOAT C512D315 = SIMD_SET1(1.6253968254f);
+
+out[0] = SIMD_MUL(in[0],C1D576);
+
+SIMD_FLOAT V12S = SIMD_MUL(in[0],CN1D720);
+V12S = SIMD_FMADD(in[IS * 2],CN1D720,V12S);
+V12S = SIMD_FMADD(in[IS * 4],CN1D720,V12S);
+V12S = SIMD_FMADD(in[IS * 6],CN1D720,V12S);
+V12S = SIMD_FMADD(in[IS * 8],CN1D720,V12S);
+
+SIMD_FLOAT V12R = SIMD_MUL(in[IS],CN1D720);
+V12R = SIMD_FMADD(in[IS * 3],CN1D720,V12R);
+V12R = SIMD_FMADD(in[IS * 5],CN1D720,V12R);
+V12R = SIMD_FMADD(in[IS * 7],CN1D720,V12R);
+
+out[1] = SIMD_ADD(V12S,V12R);
+
+out[2] = SIMD_SUB(V12S,V12R);
+ 
+SIMD_FLOAT V34S = SIMD_MUL(in[0],C1D1440);
+V34S = SIMD_FMADD(in[IS * 2],C1D360,V34S);
+V34S = SIMD_FMADD(in[IS * 4],C1D90,V34S);
+V34S = SIMD_FMADD(in[IS * 6],C2D45,V34S);
+V34S = SIMD_FMADD(in[IS * 8],C8D45,V34S);
+
+SIMD_FLOAT V34R = SIMD_MUL(in[IS * 3],C1D180);
+V34R = SIMD_FNMADD(in[IS],CN1D720,V34R);
+V34R = SIMD_FMADD(in[IS * 5],C1D45,V34R);
+V34R = SIMD_FMADD(in[IS * 7],C4D45,V34R);
+
+out[3] = SIMD_ADD(V34S,V34R);
+
+out[4] = SIMD_SUB(V34S,V34R);
+ 
+SIMD_FLOAT V56S = SIMD_MUL(in[0],CN1D5040);
+V56S = SIMD_FNMADD(in[IS * 2],C1D560,V56S);
+V56S = SIMD_FNMADD(in[IS * 4],C9D560,V56S);
+V56S = SIMD_FNMADD(in[IS * 6],C81D560,V56S);
+V56S = SIMD_FNMADD(in[IS * 8],C729D560,V56S);
+
+SIMD_FLOAT V56R = SIMD_MUL(in[IS],C1D1680);
+V56R = SIMD_FMADD(in[IS * 3],C3D560,V56R);
+V56R = SIMD_FMADD(in[IS * 5],C27D560,V56R);
+V56R = SIMD_FMADD(in[IS * 7],C243D560,V56R);
+
+out[5] = SIMD_SUB(V56S,V56R);
+
+out[6] = SIMD_ADD(V56S,V56R);
+ 
+SIMD_FLOAT V78S = SIMD_MUL(in[0],C1D40320);
+V78S = SIMD_FMADD(in[IS * 2],C1D2520,V78S);
+V78S = SIMD_FMADD(in[IS * 4],C2D315,V78S);
+V78S = SIMD_FMADD(in[IS * 6],C32D315,V78S);
+V78S = SIMD_FMADD(in[IS * 8],C512D315,V78S);
+
+SIMD_FLOAT V78R = SIMD_MUL(in[IS],C1D10080);
+V78R = SIMD_FMADD(in[IS * 3],C1D630,V78R);
+V78R = SIMD_FMADD(in[IS * 5],C8D315,V78R);
+V78R = SIMD_FMADD(in[IS * 7],C128D315,V78R);
+
+out[7] = SIMD_ADD(V78S,V78R);
+
+out[8] = SIMD_SUB(V78S,V78R);
+ 
+out[9] = in[IS * 8];
+ 
+
+
+#pragma unroll(TS)
+    for (long_t i = 0; i < TS; i++)
+	{
+	  SIMD_STREAM(output + (base + i * STRIDE) * O_STRIDE, out[i]);
+	}
+}
+

@@ -1,0 +1,6 @@
+bin/
+compiled/
+gen/
+result/
+logs/
+*.log
